@@ -1,48 +1,62 @@
+import subprocess
 import asyncio
-import os
 from telegram import Bot
 
 # Telegram Bot 配置
-TOKEN = os.getenv("TELEGRAM_TOKEN", "你的Token")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "你的Chat ID")
+token = '8011582671:AAFS55JRsSEcBEh7xmys_mQYCoB-MocNDGs'
+chat_id = '-4576563147'
 
 async def send_to_telegram(message):
     """非同步地發送訊息到 Telegram"""
-    try:
-        bot = Bot(token=TOKEN)
-        await bot.send_message(chat_id=CHAT_ID, text=message)
-    except Exception as e:
-        print(f"無法發送訊息到 Telegram: {e}")
+    bot = Bot(token=token)
+    await bot.send_message(chat_id=chat_id, text=message)
 
-async def read_process_output(process):
-    """讀取子進程的輸出並發送到 Telegram"""
+def main():
+    # 非阻塞地啟動 Chrome 瀏覽器
+    chrome_command = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--remote-debugging-port=9222",
+        "--user-data-dir=/tmp/chrome_dev"
+        "--headless"
+    ]
+    subprocess.Popen(chrome_command)
+
+    # 啟動 1106.py 並監聽輸出
+    python_command = ["python3", "openAIcost_run.py"]
+    process = subprocess.Popen(python_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    loop = asyncio.get_event_loop()
+    buffer = []  # 用於存儲多行輸出
+
     try:
+        # 實時監聽 1106.py 的輸出
         while True:
-            line = await process.stdout.readline()
-            if not line:
+            output = process.stdout.readline()
+            if output == "" and process.poll() is not None:
                 break
-            decoded_line = line.decode().strip()
-            print(decoded_line)
-            await send_to_telegram(decoded_line)
-    except Exception as e:
-        print(f"讀取輸出時出錯: {e}")
 
-async def run_script():
-    """執行主邏輯"""
-    script_path = os.path.join(os.getenv("RENDER_ROOT", "/opt/render/project/src/"), "openAIcost_run.py")
+            if output.strip():  # 如果有內容，加入緩衝區
+                buffer.append(output.strip())
+            else:  # 空行表示輸出結束，合併並發送
+                if buffer:
+                    message = "\n".join(buffer)  # 合併多行
+                    print(message)  # 在終端打印
+                    loop.run_until_complete(send_to_telegram(message))
+                    buffer.clear()  # 清空緩衝區
 
-    # 啟動子進程
-    process = await asyncio.create_subprocess_exec(
-        "python3", script_path,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
+        # 處理剩餘的緩衝內容
+        if buffer:
+            message = "\n".join(buffer)
+            print(message)
+            loop.run_until_complete(send_to_telegram(message))
 
-    # 使用單一協程處理 stdout
-    await read_process_output(process)
-
-    # 確保子進程執行完成
-    await process.wait()
+        # 處理錯誤輸出
+        stderr = process.stderr.read()
+        if stderr:
+            print("Error:", stderr)
+            loop.run_until_complete(send_to_telegram(f"Error: {stderr.strip()}"))
+    finally:
+        loop.close()
 
 if __name__ == "__main__":
-    asyncio.run(run_script())
+    main()
