@@ -24,6 +24,11 @@ def main():
     # 使用 Selenium WebDriver 啟動 Chrome
     driver = webdriver.Chrome(options=options)
 
+    port = os.getenv("PORT", 8000)
+
+    # 在指定的 port 上啟動 Flask 應用程式
+    app.run(host="0.0.0.0", port=port)
+
     # 非阻塞地啟動 1106.py
     python_command = ["python3", "openAIcost_run.py"]
     process = subprocess.Popen(python_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
