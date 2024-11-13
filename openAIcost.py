@@ -3,60 +3,66 @@ import asyncio
 from telegram import Bot
 
 # Telegram Bot 配置
-token = '8011582671:AAFS55JRsSEcBEh7xmys_mQYCoB-MocNDGs'
-chat_id = '-494647345'
+TOKEN = '8011582671:AAFS55JRsSEcBEh7xmys_mQYCoB-MocNDGs'
+CHAT_ID = '-494647345'
 
 async def send_to_telegram(message):
     """非同步地發送訊息到 Telegram"""
-    bot = Bot(token=token)
-    await bot.send_message(chat_id=chat_id, text=message)
+    try:
+        bot = Bot(token=TOKEN)
+        await bot.send_message(chat_id=CHAT_ID, text=message)
+    except Exception as e:
+        print(f"無法發送訊息到 Telegram: {e}")
+
+async def read_process_output(process):
+    """非同步地讀取子程序輸出"""
+    buffer = []
+    while True:
+        line = await process.stdout.readline()
+        if line == b"" and process.returncode is not None:
+            break
+        decoded_line = line.decode("utf-8").strip()
+        if decoded_line:
+            buffer.append(decoded_line)
+        else:
+            if buffer:
+                message = "\n".join(buffer)
+                print(message)  # 在終端打印
+                await send_to_telegram(message)  # 發送到 Telegram
+                buffer.clear()
+
+    # 處理剩餘的緩衝內容
+    if buffer:
+        message = "\n".join(buffer)
+        print(message)
+        await send_to_telegram(message)
+
+async def run_script():
+    """執行主邏輯"""
+    # 啟動 openAIcost_run.py 並監聽輸出
+    python_command = ["python3", "openAIcost_run.py"]
+    process = await asyncio.create_subprocess_exec(
+        *python_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    # 同時處理標準輸出和錯誤輸出
+    await asyncio.gather(
+        read_process_output(process),
+        read_process_output(process)
+    )
+
+    # 處理錯誤輸出
+    stderr = await process.stderr.read()
+    if stderr:
+        error_message = stderr.decode("utf-8").strip()
+        print(f"Error: {error_message}")
+        await send_to_telegram(f"Error: {error_message}")
 
 def main():
-    # 非阻塞地啟動 Chrome 瀏覽器
-    chrome_command = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "--remote-debugging-port=9222",
-        "--user-data-dir=/tmp/chrome_dev",
-        "--headless",
-    ]
-    subprocess.Popen(chrome_command)
-
-    # 啟動 1106.py 並監聽輸出
-    python_command = ["python3", "openAIcost_run.py"]
-    process = subprocess.Popen(python_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    loop = asyncio.get_event_loop()
-    buffer = []  # 用於存儲多行輸出
-
-    try:
-        # 實時監聽 1106.py 的輸出
-        while True:
-            output = process.stdout.readline()
-            if output == "" and process.poll() is not None:
-                break
-
-            if output.strip():  # 如果有內容，加入緩衝區
-                buffer.append(output.strip())
-            else:  # 空行表示輸出結束，合併並發送
-                if buffer:
-                    message = "\n".join(buffer)  # 合併多行
-                    print(message)  # 在終端打印
-                    loop.run_until_complete(send_to_telegram(message))
-                    buffer.clear()  # 清空緩衝區
-
-        # 處理剩餘的緩衝內容
-        if buffer:
-            message = "\n".join(buffer)
-            print(message)
-            loop.run_until_complete(send_to_telegram(message))
-
-        # 處理錯誤輸出
-        stderr = process.stderr.read()
-        if stderr:
-            print("Error:", stderr)
-            loop.run_until_complete(send_to_telegram(f"Error: {stderr.strip()}"))
-    finally:
-        loop.close()
+    """執行主程序"""
+    asyncio.run(run_script())
 
 if __name__ == "__main__":
     main()
