@@ -40,7 +40,7 @@ async def read_process_output(process):
 async def run_script():
     """執行主邏輯"""
     # 啟動 openAIcost_run.py 並監聽輸出
-    python_command = ["python3", "openAIcost_run.py"]
+    python_command = ["python3", "/opt/render/project/src/openAIcost.py"]
     process = await asyncio.create_subprocess_exec(
         *python_command,
         stdout=asyncio.subprocess.PIPE,
