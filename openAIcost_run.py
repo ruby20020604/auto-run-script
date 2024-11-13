@@ -120,7 +120,7 @@ try:
     end_date = today.strftime('%Y-%m-%d')
     #file_name = f"cost-2024-11-04-2024-11-05.csv"
     file_name = f"cost-{start_date}-{end_date}.csv"
-    file_path = f'/opt/render/project/src/tmp/{file_name}'
+    file_path = f'/Users/wangyunruo/Downloads/{file_name}'
 
     # 等待檔案下載完成
     max_wait_time = 30  # 最長等待30秒
