@@ -16,7 +16,7 @@ async def send_to_telegram(message):
 def main():
     # 設定 Chrome 選項
     options = Options()
-    options.binary_location = "/usr/bin/chromium"
+    options.binary_location = "/usr/bin/chromium-browser"
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-gpu")
