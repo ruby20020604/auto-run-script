@@ -1,6 +1,8 @@
 import subprocess
 import asyncio
 from telegram import Bot
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 # Telegram Bot 配置
 token = '8011582671:AAFS55JRsSEcBEh7xmys_mQYCoB-MocNDGs'
@@ -12,16 +14,17 @@ async def send_to_telegram(message):
     await bot.send_message(chat_id=chat_id, text=message)
 
 def main():
-    # 非阻塞地啟動 Chrome 瀏覽器
-    chrome_command = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "--remote-debugging-port=9222",
-        "--user-data-dir=/tmp/chrome_dev"
-        "--headless"
-    ]
-    subprocess.Popen(chrome_command)
+    # 設定 Chrome 選項
+    options = Options()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--disable-dev-shm-usage')
+    options.binary_location = '/usr/bin/chromium-browser'
 
-    # 啟動 1106.py 並監聽輸出
+    # 使用 Selenium WebDriver 啟動 Chrome
+    driver = webdriver.Chrome(options=options)
+
+    # 非阻塞地啟動 1106.py
     python_command = ["python3", "openAIcost_run.py"]
     process = subprocess.Popen(python_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -57,6 +60,7 @@ def main():
             loop.run_until_complete(send_to_telegram(f"Error: {stderr.strip()}"))
     finally:
         loop.close()
+        driver.quit()
 
 if __name__ == "__main__":
     main()
