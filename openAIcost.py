@@ -1,10 +1,10 @@
-import subprocess
 import asyncio
+import os
 from telegram import Bot
 
 # Telegram Bot 配置
-TOKEN = '8011582671:AAFS55JRsSEcBEh7xmys_mQYCoB-MocNDGs'
-CHAT_ID = '-494647345'
+TOKEN = os.getenv("TELEGRAM_TOKEN", "你的Token")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "你的Chat ID")
 
 async def send_to_telegram(message):
     """非同步地發送訊息到 Telegram"""
@@ -15,54 +15,34 @@ async def send_to_telegram(message):
         print(f"無法發送訊息到 Telegram: {e}")
 
 async def read_process_output(process):
-    """非同步地讀取子程序輸出"""
-    buffer = []
-    while True:
-        line = await process.stdout.readline()
-        if line == b"" and process.returncode is not None:
-            break
-        decoded_line = line.decode("utf-8").strip()
-        if decoded_line:
-            buffer.append(decoded_line)
-        else:
-            if buffer:
-                message = "\n".join(buffer)
-                print(message)  # 在終端打印
-                await send_to_telegram(message)  # 發送到 Telegram
-                buffer.clear()
-
-    # 處理剩餘的緩衝內容
-    if buffer:
-        message = "\n".join(buffer)
-        print(message)
-        await send_to_telegram(message)
+    """讀取子進程的輸出並發送到 Telegram"""
+    try:
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            decoded_line = line.decode().strip()
+            print(decoded_line)
+            await send_to_telegram(decoded_line)
+    except Exception as e:
+        print(f"讀取輸出時出錯: {e}")
 
 async def run_script():
     """執行主邏輯"""
-    # 啟動 openAIcost_run.py 並監聽輸出
-    python_command = ["python3", "/opt/render/project/src/openAIcost.py"]
+    script_path = os.path.join(os.getenv("RENDER_ROOT", "/opt/render/project/src/"), "openAIcost_run.py")
+
+    # 啟動子進程
     process = await asyncio.create_subprocess_exec(
-        *python_command,
+        "python3", script_path,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
 
-    # 同時處理標準輸出和錯誤輸出
-    await asyncio.gather(
-        read_process_output(process),
-        read_process_output(process)
-    )
+    # 使用單一協程處理 stdout
+    await read_process_output(process)
 
-    # 處理錯誤輸出
-    stderr = await process.stderr.read()
-    if stderr:
-        error_message = stderr.decode("utf-8").strip()
-        print(f"Error: {error_message}")
-        await send_to_telegram(f"Error: {error_message}")
-
-def main():
-    """執行主程序"""
-    asyncio.run(run_script())
+    # 確保子進程執行完成
+    await process.wait()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(run_script())
