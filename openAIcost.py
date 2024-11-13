@@ -16,10 +16,11 @@ async def send_to_telegram(message):
 def main():
     # 設定 Chrome 選項
     options = Options()
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-dev-shm-usage')
-    options.binary_location = '/usr/bin/chromium-browser'
+    options.binary_location = "/usr/bin/chromium"
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
 
     # 使用 Selenium WebDriver 啟動 Chrome
     driver = webdriver.Chrome(options=options)
